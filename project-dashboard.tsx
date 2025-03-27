@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, FC } from "react"
-import { Check, ChevronDown, ChevronUp, Calendar, BarChart, User } from "lucide-react"
+import { Check, ChevronDown, ChevronUp, Calendar, BarChart, User, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
 import { useProjects, useProjectSections, filterProjectsByManager, calculateProjectProgress } from "@/hooks/useApi"
@@ -66,6 +66,7 @@ const ProjectDashboard: FC = () => {
   const [selectedChartSections, setSelectedChartSections] = useState<string[]>([])
   const [showActiveProjects, setShowActiveProjects] = useState(true)
   const [allDates, setAllDates] = useState<string[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
 
   // Получаем данные с помощью хуков
   const { data: projects = [], isLoading: isProjectsLoading, error: projectsError } = useProjects();
@@ -76,14 +77,18 @@ const ProjectDashboard: FC = () => {
     .filter(project => showActiveProjects ? project.status === 'active' : project.status !== 'active')
     .filter(project => selectedManager === "Все менеджеры" ? true : project.manager === selectedManager);
 
+  // Фильтрация проектов по поисковому запросу
+  const searchFilteredProjects = filteredProjects
+    .filter(project => project.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
   // Список всех менеджеров
   const managers = ["Все менеджеры", ...Array.from(new Set(projects.map(project => project.manager)))];
 
   // Устанавливаем первый проект по умолчанию при загрузке данных
   useEffect(() => {
     if (filteredProjects.length > 0 && !selectedProject) {
-      setSelectedProject(filteredProjects[0].name);
-      setSelectedProjectId(filteredProjects[0].ws_project_id);
+      setSelectedProject("");
+      setSelectedProjectId(undefined);
     }
   }, [filteredProjects, selectedProject]);
 
@@ -123,7 +128,12 @@ const ProjectDashboard: FC = () => {
       new Map(apiSections.map(section => [section.name, section])).values()
     );
     
-    return uniqueSections.map((section, index) => {
+    // Сортируем секции по имени в алфавитном порядке
+    const sortedSections = [...uniqueSections].sort((a, b) => 
+      (a.name || '').localeCompare(b.name || '')
+    );
+    
+    return sortedSections.map((section, index) => {
       // Используем цвета из цветовой палитры или устанавливаем цвет по умолчанию
       const color = colorPalette[index % colorPalette.length];
       
@@ -190,6 +200,7 @@ const ProjectDashboard: FC = () => {
     setSelectedProject(projectName);
     setSelectedProjectId(selectedProjectObj?.ws_project_id);
     setIsOpen(false);
+    setSearchQuery(""); // Сбрасываем поисковый запрос при выборе проекта
   }
 
   // Handle manager change
@@ -211,7 +222,7 @@ const ProjectDashboard: FC = () => {
                 className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm text-gray-800 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-600"></div>
+                  <div className={cn("w-2 h-2 rounded-full", selectedProject ? "bg-green-600" : "bg-gray-400")}></div>
                   <span className="font-medium">{selectedProject || "Выберите проект"}</span>
                 </div>
                 {isOpen ? (
@@ -223,29 +234,52 @@ const ProjectDashboard: FC = () => {
 
               {isOpen && (
                 <div className="absolute z-20 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-100 overflow-hidden">
-                  {filteredProjects.map((project) => (
-                      <div
-                      key={project.ws_project_id}
-                        className={cn(
-                          "px-4 py-3 cursor-pointer transition-colors",
-                        project.name === selectedProject ? "bg-green-50 text-green-900" : "text-gray-700 hover:bg-gray-50",
-                        )}
-                      onClick={() => handleProjectChange(project.name)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={cn(
-                                "w-2 h-2 rounded-full",
-                              project.status === 'active' ? "bg-green-600" : "bg-gray-400",
-                              )}
-                            ></div>
-                          <span>{project.name}</span>
-                          </div>
-                        {project.name === selectedProject && <Check className="h-4 w-4 text-green-600" />}
-                        </div>
+                  {/* Поле поиска */}
+                  <div className="sticky top-0 bg-white p-2 border-b border-gray-100 z-10">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Поиск проекта..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Список проектов с прокруткой */}
+                  <div className="max-h-60 overflow-y-auto">
+                    {searchFilteredProjects.length === 0 ? (
+                      <div className="px-4 py-3 text-gray-500 text-center">
+                        Проекты не найдены
                       </div>
-                  ))}
+                    ) : (
+                      searchFilteredProjects.map((project) => (
+                        <div
+                          key={project.ws_project_id}
+                          className={cn(
+                            "px-4 py-3 cursor-pointer transition-colors",
+                            project.name === selectedProject ? "bg-green-50 text-green-900" : "text-gray-700 hover:bg-gray-50",
+                          )}
+                          onClick={() => handleProjectChange(project.name)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={cn(
+                                  "w-2 h-2 rounded-full",
+                                  project.status === 'active' ? "bg-green-600" : "bg-gray-400",
+                                )}
+                              ></div>
+                              <span>{project.name}</span>
+                            </div>
+                            {project.name === selectedProject && <Check className="h-4 w-4 text-green-600" />}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -341,7 +375,25 @@ const ProjectDashboard: FC = () => {
 
             <div className="p-4 border-b border-gray-100 bg-white">
               <div className="flex flex-wrap gap-2">
-                  {currentProjectSections.map((section) => (
+                {/* Average button - показываем первым */}
+                <button
+                  onClick={() => toggleChartSection("Среднее значение")}
+                  className={cn(
+                    "px-3 py-1.5 text-sm rounded-md border transition-colors",
+                    selectedChartSections.includes("Среднее значение")
+                      ? "bg-green-50 border-green-200 text-green-800"
+                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50",
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: averageLineColor }}></div>
+                    Среднее значение
+                    {selectedChartSections.includes("Среднее значение") && <Check className="h-3 w-3 text-green-600" />}
+                  </div>
+                </button>
+                
+                {/* Секции проекта - отсортированы в formatSectionsForDisplay */}
+                {currentProjectSections.map((section) => (
                   <button
                     key={section.name}
                     onClick={() => toggleChartSection(section.name)}
@@ -359,23 +411,6 @@ const ProjectDashboard: FC = () => {
                     </div>
                   </button>
                 ))}
-
-                {/* Average button */}
-                <button
-                  onClick={() => toggleChartSection("Среднее значение")}
-                  className={cn(
-                    "px-3 py-1.5 text-sm rounded-md border transition-colors",
-                    selectedChartSections.includes("Среднее значение")
-                      ? "bg-green-50 border-green-200 text-green-800"
-                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50",
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: averageLineColor }}></div>
-                    Среднее значение
-                    {selectedChartSections.includes("Среднее значение") && <Check className="h-3 w-3 text-green-600" />}
-                  </div>
-                </button>
               </div>
             </div>
 
@@ -557,6 +592,7 @@ const ProjectDashboard: FC = () => {
                         </td>
                       </tr>
                     ) : (
+                      // Секции отсортированы в formatSectionsForDisplay
                       currentProjectSections.map((section) => (
                     <tr key={section.name} className="hover:bg-gray-50">
                       <td className="border-r border-b border-gray-100 p-3 bg-white font-medium text-gray-700 sticky left-0 z-10">
