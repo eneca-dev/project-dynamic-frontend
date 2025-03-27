@@ -30,6 +30,7 @@ export interface Section {
   status: string;
   project_id: string;
   tags: Tag[];
+  created_at?: string;
 }
 
 export interface Tag {
@@ -65,9 +66,11 @@ export const fetchProjectSections = async (projectId: string): Promise<Section[]
 };
 
 // Адаптер для преобразования данных от API в формат, удобный для фронтенда
-export const adaptProjectData = (projects: Project[]): Project[] => {
+export const adaptProjectData = (projects: any[]): Project[] => {
   return projects.map(project => ({
     ...project,
+    // Используем поле user_to.name как manager проекта
+    manager: project.user_to?.name || 'Не назначен',
     // Дополнительные преобразования, если требуется
     status: project.status || 'active', // Значение по умолчанию, если status отсутствует
   }));
@@ -90,7 +93,8 @@ export const adaptSectionData = (response: any): Section[] => {
           progress: progressValue,
           status: 'active', // Значение по умолчанию
           project_id: section.ws_project_id.toString(),
-          tags: [] // Пустой массив тегов
+          tags: [], // Пустой массив тегов
+          created_at: section.created_at // Сохраняем дату создания секции
         };
       });
     }

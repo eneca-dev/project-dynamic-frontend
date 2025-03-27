@@ -50,6 +50,13 @@ interface ProjectDataMap {
   [key: string]: ProjectData
 }
 
+// Функция для форматирования даты из строки "2025-03-21T13:55:35.612254" в "21.03.2025"
+const formatDate = (dateString: string): string => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.');
+};
+
 const ProjectDashboard: FC = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [isManagerOpen, setIsManagerOpen] = useState(false)
@@ -58,6 +65,7 @@ const ProjectDashboard: FC = () => {
   const [selectedManager, setSelectedManager] = useState("Все менеджеры")
   const [selectedChartSections, setSelectedChartSections] = useState<string[]>([])
   const [showActiveProjects, setShowActiveProjects] = useState(true)
+  const [allDates, setAllDates] = useState<string[]>([])
 
   // Получаем данные с помощью хуков
   const { data: projects = [], isLoading: isProjectsLoading, error: projectsError } = useProjects();
@@ -65,7 +73,7 @@ const ProjectDashboard: FC = () => {
 
   // Список проектов, отфильтрованный по менеджеру и статусу
   const filteredProjects = projects
-    .filter(project => showActiveProjects ? project.status === 'active' : true)
+    .filter(project => showActiveProjects ? project.status === 'active' : project.status !== 'active')
     .filter(project => selectedManager === "Все менеджеры" ? true : project.manager === selectedManager);
 
   // Список всех менеджеров
@@ -79,53 +87,28 @@ const ProjectDashboard: FC = () => {
     }
   }, [filteredProjects, selectedProject]);
 
-  const today = "10.08.2025"
-
-  // Updated to use Friday dates (end of week) with more dates in the past
-  const allDates = [
-    // April dates (past)
-    "05.04.2025",
-    "12.04.2025",
-    "19.04.2025",
-    "26.04.2025",
-    // May dates (past)
-    "03.05.2025",
-    "10.05.2025",
-    "17.05.2025",
-    "24.05.2025",
-    "31.05.2025",
-    // June dates (past)
-    "07.06.2025",
-    "14.06.2025",
-    "21.06.2025",
-    "28.06.2025",
-    // July dates (past)
-    "05.07.2025",
-    "12.07.2025",
-    "19.07.2025",
-    "26.07.2025",
-    // August dates (up to current date)
-    "02.08.2025",
-    "09.08.2025",
-  ]
-
-  // Group dates by month
-  const datesByMonth = allDates.reduce((acc: Record<string, string[]>, date) => {
-    const month = date.split(".")[1]
-    let monthName = "Август"
-
-    if (month === "04") monthName = "Апрель"
-    else if (month === "05") monthName = "Май"
-    else if (month === "06") monthName = "Июнь"
-    else if (month === "07") monthName = "Июль"
-
-    if (!acc[monthName]) {
-      acc[monthName] = []
+  // Получаем даты из секций проекта
+  useEffect(() => {
+    if (projectSections && projectSections.length > 0) {
+      // Собираем все даты из полей created_at секций
+      const dates = projectSections
+        .filter(section => section.created_at)
+        .map(section => formatDate(section.created_at || ""))
+        .filter(date => date) // Убираем пустые строки
+      
+      // Удаляем дубликаты и сортируем даты
+      const uniqueDates = Array.from(new Set(dates)).sort((a, b) => {
+        const [dayA, monthA, yearA] = a.split('.').map(Number);
+        const [dayB, monthB, yearB] = b.split('.').map(Number);
+        return new Date(yearA, monthA - 1, dayA).getTime() - new Date(yearB, monthB - 1, dayB).getTime();
+      });
+      
+      setAllDates(uniqueDates.length > 0 ? uniqueDates : []);
     }
+  }, [projectSections]);
 
-    acc[monthName].push(date)
-    return acc
-  }, {})
+  // Получаем текущую дату в формате "DD.MM.YYYY"
+  const today = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.');
 
   // Конвертация данных секций из API в формат для отображения
   const formatSectionsForDisplay = (apiSections: ApiSection[]): Section[] => {
@@ -397,95 +380,101 @@ const ProjectDashboard: FC = () => {
             </div>
 
             <div className="p-4 pb-12">
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart
-                  data={allDates.map((date, dateIndex) => {
-                    // Create a single data point for each date with all selected sections
-                    const dataPoint: any = { date }
+              {allDates.length > 0 ? (
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart
+                    data={allDates.map((date, dateIndex) => {
+                      // Create a single data point for each date with all selected sections
+                      const dataPoint: any = { date }
 
-                    // Add data for each selected section
-                    selectedChartSections.forEach((sectionName) => {
-                      if (sectionName === "Среднее значение") {
-                        const avgValue = percentToNumber(averageProgress[dateIndex])
-                        dataPoint[sectionName] = avgValue
-                      } else {
-                          const sectionData = currentProjectSections.find((s) => s.name === sectionName)
-                        if (sectionData && dateIndex < sectionData.progress.length) {
-                          dataPoint[sectionName] = percentToNumber(sectionData.progress[dateIndex])
+                      // Add data for each selected section
+                      selectedChartSections.forEach((sectionName) => {
+                        if (sectionName === "Среднее значение") {
+                          const avgValue = percentToNumber(averageProgress[dateIndex])
+                          dataPoint[sectionName] = avgValue
+                        } else {
+                            const sectionData = currentProjectSections.find((s) => s.name === sectionName)
+                          if (sectionData && dateIndex < sectionData.progress.length) {
+                            dataPoint[sectionName] = percentToNumber(sectionData.progress[dateIndex])
+                          }
                         }
-                      }
-                    })
+                      })
 
-                    return dataPoint
-                  })}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis
-                    dataKey="date"
-                    angle={-45}
-                    textAnchor="end"
-                    padding={{ left: 30, right: 30 }}
-                    tick={{ fill: "#666" }}
-                    axisLine={{ stroke: "#e5e5e5" }}
-                    tickLine={{ stroke: "#e5e5e5" }}
-                  />
-                  <YAxis
-                    domain={[0, 100]}
-                    tickFormatter={(value) => `${value}%`}
-                    tick={{ fill: "#666" }}
-                    axisLine={{ stroke: "#e5e5e5" }}
-                    tickLine={{ stroke: "#e5e5e5" }}
-                  />
-                  <Tooltip
-                    formatter={(value, name) => [`${value}%`, name]}
-                    labelFormatter={(label) => `Дата: ${label}`}
-                    contentStyle={{
-                      backgroundColor: "white",
-                      border: "1px solid #f0f0f0",
-                      borderRadius: "4px",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                    }}
-                  />
-                  <Legend
-                    iconType="circle"
-                    verticalAlign="bottom"
-                    align="center"
-                    wrapperStyle={{
-                      paddingTop: 30,
-                      bottom: -10,
-                      left: 0,
-                      right: 0,
-                    }}
-                  />
+                      return dataPoint
+                    })}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis
+                      dataKey="date"
+                      angle={-45}
+                      textAnchor="end"
+                      padding={{ left: 30, right: 30 }}
+                      tick={{ fill: "#666" }}
+                      axisLine={{ stroke: "#e5e5e5" }}
+                      tickLine={{ stroke: "#e5e5e5" }}
+                    />
+                    <YAxis
+                      domain={[0, 100]}
+                      tickFormatter={(value) => `${value}%`}
+                      tick={{ fill: "#666" }}
+                      axisLine={{ stroke: "#e5e5e5" }}
+                      tickLine={{ stroke: "#e5e5e5" }}
+                    />
+                    <Tooltip
+                      formatter={(value, name) => [`${value}%`, name]}
+                      labelFormatter={(label) => `Дата: ${label}`}
+                      contentStyle={{
+                        backgroundColor: "white",
+                        border: "1px solid #f0f0f0",
+                        borderRadius: "4px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                      }}
+                    />
+                    <Legend
+                      iconType="circle"
+                      verticalAlign="bottom"
+                      align="center"
+                      wrapperStyle={{
+                        paddingTop: 30,
+                        bottom: -10,
+                        left: 0,
+                        right: 0,
+                      }}
+                    />
 
-                  {selectedChartSections.map((sectionName, index) => {
-                    // Use a special color for the average line, otherwise use the color palette
-                    const color =
-                      sectionName === "Среднее значение"
-                        ? averageLineColor
-                          : currentProjectSections.find((s) => s.name === sectionName)?.color ||
-                          colorPalette[index % colorPalette.length]
+                    {selectedChartSections.map((sectionName, index) => {
+                      // Use a special color for the average line, otherwise use the color palette
+                      const color =
+                        sectionName === "Среднее значение"
+                          ? averageLineColor
+                            : currentProjectSections.find((s) => s.name === sectionName)?.color ||
+                            colorPalette[index % colorPalette.length]
 
-                    // Make the average line thicker
-                    const strokeWidth = sectionName === "Среднее значение" ? 3 : 2
+                      // Make the average line thicker
+                      const strokeWidth = sectionName === "Среднее значение" ? 3 : 2
 
-                    return (
-                      <Line
-                        key={sectionName}
-                        type="monotone"
-                        dataKey={sectionName}
-                        name={sectionName}
-                        stroke={color}
-                        strokeWidth={strokeWidth}
-                        dot={{ r: 5, fill: color }}
-                        activeDot={{ r: 7 }}
-                        connectNulls
-                      />
-                    )
-                  })}
-                </LineChart>
-              </ResponsiveContainer>
+                      return (
+                        <Line
+                          key={sectionName}
+                          type="monotone"
+                          dataKey={sectionName}
+                          name={sectionName}
+                          stroke={color}
+                          strokeWidth={strokeWidth}
+                          dot={{ r: 5, fill: color }}
+                          activeDot={{ r: 7 }}
+                          connectNulls
+                        />
+                      )
+                    })}
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex justify-center items-center h-400 text-gray-500">
+                  Нет данных для отображения графика
+                </div>
+              )}
             </div>
           </div>
               </div>
@@ -515,43 +504,50 @@ const ProjectDashboard: FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Average Row */}
-                  <tr className="bg-green-50 hover:bg-green-50">
-                    <td className="border-r border-b border-gray-100 p-3 font-medium text-gray-700 sticky left-0 z-10 bg-green-50">
-                      Среднее значение
-                    </td>
-                    {averageProgress.map((value, index) => {
-                      const isLastDate = index === averageProgress.length - 1
-                      return (
-                        <td
-                          key={index}
-                          className={cn(
-                            "border-r border-b border-gray-100 p-3 text-center",
-                            isLastDate ? "bg-green-50" : "",
-                          )}
-                        >
-                          <span
-                            key={`avg-span-${index}`}
+                  {allDates.length > 0 && (
+                    <tr className="bg-green-50 hover:bg-green-50">
+                      <td className="border-r border-b border-gray-100 p-3 font-medium text-gray-700 sticky left-0 z-10 bg-green-50">
+                        Среднее значение
+                      </td>
+                      {averageProgress.map((value, index) => {
+                        const isLastDate = index === averageProgress.length - 1
+                        return (
+                          <td
+                            key={index}
                             className={cn(
-                              "px-2 py-1 rounded-full text-xs font-medium",
-                              value === "-"
-                                ? "text-gray-400"
-                                : Number.parseInt(value) > 50
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-gray-100 text-gray-700",
+                              "border-r border-b border-gray-100 p-3 text-center",
+                              isLastDate ? "bg-green-50" : "",
                             )}
                           >
-                            {value}
-                          </span>
-                        </td>
-                      )
-                    })}
-                  </tr>
+                            <span
+                              key={`avg-span-${index}`}
+                              className={cn(
+                                "px-2 py-1 rounded-full text-xs font-medium",
+                                value === "-"
+                                  ? "text-gray-400"
+                                  : Number.parseInt(value) > 50
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-gray-100 text-gray-700",
+                              )}
+                            >
+                              {value}
+                            </span>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  )}
 
                     {isSectionsLoading ? (
                       <tr>
                         <td colSpan={allDates.length + 1} className="text-center py-4">
                           Загрузка секций проекта...
+                        </td>
+                      </tr>
+                    ) : allDates.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="text-center py-4">
+                          Нет данных о датах для этого проекта
                         </td>
                       </tr>
                     ) : currentProjectSections.length === 0 ? (
