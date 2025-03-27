@@ -1,7 +1,7 @@
 "use client"
 
-import ProjectDashboard from "../project-dashboard"
+import ProjectDashboard from "@/project-dashboard"
 
-export default function SyntheticV0PageForDeployment() {
+export default function Home() {
   return <ProjectDashboard />
 }

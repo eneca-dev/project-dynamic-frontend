@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   generator: 'v0.dev',
 }
 
+import { RootClientLayout } from './root-client-layout'
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -14,7 +16,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <RootClientLayout>
+          {children}
+        </RootClientLayout>
+      </body>
     </html>
   )
 }

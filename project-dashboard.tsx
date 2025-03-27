@@ -4,6 +4,8 @@ import { useState, useEffect, FC } from "react"
 import { Check, ChevronDown, ChevronUp, Calendar, BarChart, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
+import { useProjects, useProjectSections, filterProjectsByManager, calculateProjectProgress } from "@/hooks/useApi"
+import { Project, Section as ApiSection } from "@/lib/api"
 
 // Predefined color palette for chart sections
 const colorPalette = [
@@ -51,10 +53,31 @@ interface ProjectDataMap {
 const ProjectDashboard: FC = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [isManagerOpen, setIsManagerOpen] = useState(false)
-  const [selectedProject, setSelectedProject] = useState("Проект 3")
+  const [selectedProject, setSelectedProject] = useState("")
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined)
   const [selectedManager, setSelectedManager] = useState("Все менеджеры")
   const [selectedChartSections, setSelectedChartSections] = useState<string[]>([])
   const [showActiveProjects, setShowActiveProjects] = useState(true)
+
+  // Получаем данные с помощью хуков
+  const { data: projects = [], isLoading: isProjectsLoading, error: projectsError } = useProjects();
+  const { data: projectSections = [], isLoading: isSectionsLoading } = useProjectSections(selectedProjectId);
+
+  // Список проектов, отфильтрованный по менеджеру и статусу
+  const filteredProjects = projects
+    .filter(project => showActiveProjects ? project.status === 'active' : true)
+    .filter(project => selectedManager === "Все менеджеры" ? true : project.manager === selectedManager);
+
+  // Список всех менеджеров
+  const managers = ["Все менеджеры", ...Array.from(new Set(projects.map(project => project.manager)))];
+
+  // Устанавливаем первый проект по умолчанию при загрузке данных
+  useEffect(() => {
+    if (filteredProjects.length > 0 && !selectedProject) {
+      setSelectedProject(filteredProjects[0].name);
+      setSelectedProjectId(filteredProjects[0].ws_project_id);
+    }
+  }, [filteredProjects, selectedProject]);
 
   const today = "10.08.2025"
 
@@ -104,721 +127,55 @@ const ProjectDashboard: FC = () => {
     return acc
   }, {})
 
-  // Project-specific data with managers and active status
-  const projectData: ProjectDataMap = {
-    "Проект 1": {
-      manager: "Иванов А.П.",
-      isActive: true,
-      sections: [
-        {
-          name: "Фундамент",
-          color: "#40916C",
-          progress: [
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "55%",
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-            "85%",
-            "95%",
-            "100%",
-          ],
-        },
-        {
-          name: "Стены",
-          color: "#406987",
-          progress: [
-            "0%",
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "55%",
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-            "85%",
-            "95%",
-          ],
-        },
-        {
-          name: "Крыша",
-          color: "#D29F5D",
-          progress: [
-            "0%",
-            "0%",
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "55%",
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-            "85%",
-          ],
-        },
-        {
-          name: "Окна и двери",
-          color: "#D27C5D",
-          progress: [
-            "0%",
-            "0%",
-            "0%",
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "55%",
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-          ],
-        },
-      ],
-    },
-    "Проект 2": {
-      manager: "Петров С.В.",
-      isActive: true,
-      sections: [
-        {
-          name: "Дизайн",
-          color: "#3F6D58",
-          progress: [
-            "10%",
-            "20%",
-            "30%",
-            "40%",
-            "50%",
-            "60%",
-            "70%",
-            "80%",
-            "90%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-          ],
-        },
-        {
-          name: "Верстка",
-          color: "#3D5565",
-          progress: [
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "40%",
-            "50%",
-            "60%",
-            "70%",
-            "75%",
-            "80%",
-            "85%",
-            "90%",
-            "95%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-          ],
-        },
-        {
-          name: "Бэкенд",
-          color: "#9D815B",
-          progress: [
-            "0%",
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-            "85%",
-            "90%",
-            "95%",
-          ],
-        },
-        {
-          name: "Тестирование",
-          color: "#9D6D5B",
-          progress: [
-            "0%",
-            "0%",
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "55%",
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-            "85%",
-          ],
-        },
-        {
-          name: "Деплой",
-          color: "#155E3D",
-          progress: [
-            "0%",
-            "0%",
-            "0%",
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "55%",
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-          ],
-        },
-      ],
-    },
-    "Проект 3": {
-      manager: "Сидоров И.К.",
-      isActive: true,
-      sections: [
-        {
-          name: "Раздел 1",
-          color: "#153C57",
-          progress: [
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "55%",
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-            "85%",
-            "90%",
-            "100%",
-          ],
-        },
-        {
-          name: "Раздел 2",
-          color: "#885A1E",
-          progress: [
-            "2%",
-            "4%",
-            "6%",
-            "8%",
-            "10%",
-            "12%",
-            "14%",
-            "16%",
-            "18%",
-            "20%",
-            "22%",
-            "24%",
-            "26%",
-            "28%",
-            "30%",
-            "32%",
-            "34%",
-            "36%",
-            "40%",
-          ],
-        },
-        {
-          name: "Раздел 3",
-          color: "#883B1E",
-          progress: [
-            "3%",
-            "6%",
-            "9%",
-            "12%",
-            "15%",
-            "18%",
-            "21%",
-            "24%",
-            "27%",
-            "30%",
-            "33%",
-            "36%",
-            "39%",
-            "42%",
-            "45%",
-            "48%",
-            "51%",
-            "54%",
-            "60%",
-          ],
-        },
-        {
-          name: "Раздел 4",
-          color: "#74C8A2",
-          progress: [
-            "1%",
-            "2%",
-            "3%",
-            "4%",
-            "5%",
-            "6%",
-            "7%",
-            "8%",
-            "9%",
-            "10%",
-            "12%",
-            "14%",
-            "16%",
-            "18%",
-            "20%",
-            "22%",
-            "24%",
-            "26%",
-            "30%",
-          ],
-        },
-        {
-          name: "Раздел 5",
-          color: "#76A3C3",
-          progress: [
-            "4%",
-            "8%",
-            "12%",
-            "16%",
-            "20%",
-            "24%",
-            "28%",
-            "32%",
-            "36%",
-            "40%",
-            "44%",
-            "48%",
-            "52%",
-            "56%",
-            "60%",
-            "64%",
-            "68%",
-            "72%",
-            "80%",
-          ],
-        },
-      ],
-    },
-    "Проект 4": {
-      manager: "Иванов А.П.",
-      isActive: true,
-      sections: [
-        {
-          name: "Планирование",
-          color: "#E8BE87",
-          progress: [
-            "10%",
-            "20%",
-            "30%",
-            "40%",
-            "50%",
-            "60%",
-            "70%",
-            "80%",
-            "90%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-          ],
-        },
-        {
-          name: "Закупка материалов",
-          color: "#E8A187",
-          progress: [
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "60%",
-            "70%",
-            "80%",
-            "90%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-          ],
-        },
-        {
-          name: "Производство",
-          color: "#40916C",
-          progress: [
-            "0%",
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "55%",
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-            "90%",
-            "95%",
-          ],
-        },
-        {
-          name: "Контроль качества",
-          color: "#406987",
-          progress: [
-            "0%",
-            "0%",
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "55%",
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-            "85%",
-          ],
-        },
-        {
-          name: "Доставка",
-          color: "#D29F5D",
-          progress: [
-            "0%",
-            "0%",
-            "0%",
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "55%",
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-          ],
-        },
-        {
-          name: "Установка",
-          color: "#D27C5D",
-          progress: [
-            "0%",
-            "0%",
-            "0%",
-            "0%",
-            "5%",
-            "10%",
-            "15%",
-            "20%",
-            "25%",
-            "30%",
-            "35%",
-            "40%",
-            "45%",
-            "50%",
-            "55%",
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-          ],
-        },
-      ],
-    },
-    "Проект 5": {
-      manager: "Петров С.В.",
-      isActive: false,
-      sections: [
-        {
-          name: "Исследование",
-          color: "#3F6D58",
-          progress: [
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-          ],
-        },
-        {
-          name: "Разработка",
-          color: "#3D5565",
-          progress: [
-            "80%",
-            "85%",
-            "90%",
-            "95%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-          ],
-        },
-        {
-          name: "Тестирование",
-          color: "#9D815B",
-          progress: [
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-            "85%",
-            "90%",
-            "95%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-          ],
-        },
-      ],
-    },
-    "Проект 6": {
-      manager: "Сидоров И.К.",
-      isActive: false,
-      sections: [
-        {
-          name: "Этап 1",
-          color: "#9D6D5B",
-          progress: [
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-          ],
-        },
-        {
-          name: "Этап 2",
-          color: "#155E3D",
-          progress: [
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-          ],
-        },
-        {
-          name: "Этап 3",
-          color: "#153C57",
-          progress: [
-            "90%",
-            "92%",
-            "94%",
-            "96%",
-            "98%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-            "100%",
-          ],
-        },
-      ],
-    },
+  // Конвертация данных секций из API в формат для отображения
+  const formatSectionsForDisplay = (apiSections: ApiSection[]): Section[] => {
+    // Проверка, что apiSections является массивом
+    if (!Array.isArray(apiSections)) {
+      console.error('apiSections не является массивом:', apiSections);
+      return [];
+    }
+    
+    // Удаляем дубликаты секций, используя уникальные имена
+    const uniqueSections = Array.from(
+      new Map(apiSections.map(section => [section.name, section])).values()
+    );
+    
+    return uniqueSections.map((section, index) => {
+      // Используем цвета из цветовой палитры или устанавливаем цвет по умолчанию
+      const color = colorPalette[index % colorPalette.length];
+      
+      // Создаем массив прогресса с одинаковым значением для всех дат
+      // В реальном приложении здесь будет использоваться историческая информация
+      const progressValue = section.progress !== undefined ? section.progress : 0;
+      const progressArray = allDates.map(() => `${progressValue}%`);
+      
+      return {
+        name: section.name || `Секция ${index + 1}`,
+        color,
+        progress: progressArray,
+      };
+    });
+  };
+
+  // Если данные загружаются, показываем индикатор загрузки
+  if (isProjectsLoading) {
+    return <div className="flex justify-center items-center min-h-screen">Загрузка проектов...</div>;
   }
 
-  // Get unique managers
-  const managers = ["Все менеджеры", ...new Set(Object.values(projectData).map((project) => project.manager))]
+  // Если есть ошибка, показываем сообщение об ошибке
+  if (projectsError) {
+    return <div className="flex justify-center items-center min-h-screen text-red-500">Ошибка загрузки проектов</div>;
+  }
 
-  // Filter projects based on selected manager and active status
-  const filteredProjects = Object.entries(projectData)
-    .filter(([_, project]) => {
-      const managerMatch = selectedManager === "Все менеджеры" || project.manager === selectedManager
-      const activeMatch = project.isActive === showActiveProjects
-      return managerMatch && activeMatch
-    })
-    .map(([name]) => name)
-
-  // If no projects match the filters, reset to default selection
-  useEffect(() => {
-    if (filteredProjects.length > 0 && !filteredProjects.includes(selectedProject)) {
-      setSelectedProject(filteredProjects[0])
-    }
-  }, [filteredProjects, selectedProject])
-
-  // Get current project data
-  const currentProjectData = projectData[selectedProject as keyof typeof projectData]
+  // Используем данные из API вместо статических данных
+  const currentProject = filteredProjects.find(project => project.name === selectedProject);
+  
+  // В данном случае, используем адаптированные секции или пустой массив
+  const currentProjectSections = isSectionsLoading ? [] : formatSectionsForDisplay(projectSections);
 
   // Calculate average percentages for each date column for the current project
   const averageProgress = allDates.map((_, columnIndex) => {
-    const validValues = currentProjectData.sections
+    const validValues = currentProjectSections
       .map((section) => section.progress[columnIndex])
       .filter((value) => value !== "-")
       .map((value) => Number.parseInt(value.replace("%", "")))
@@ -828,16 +185,6 @@ const ProjectDashboard: FC = () => {
     const average = validValues.reduce((sum, value) => sum + value, 0) / validValues.length
     return `${Math.round(average)}%`
   })
-
-  // Reset selected chart sections when project changes
-  useEffect(() => {
-    // Initialize with the first section of the selected project
-    if (projectData[selectedProject]?.sections.length > 0) {
-      setSelectedChartSections([projectData[selectedProject].sections[0].name])
-    } else {
-      setSelectedChartSections([])
-    }
-  }, [selectedProject]) // Only depend on selectedProject, not derived data
 
   // Toggle section selection for chart
   const toggleChartSection = (section: string) => {
@@ -855,15 +202,17 @@ const ProjectDashboard: FC = () => {
   }
 
   // Handle project change
-  const handleProjectChange = (project: string) => {
-    setSelectedProject(project)
-    setIsOpen(false)
+  const handleProjectChange = (projectName: string) => {
+    const selectedProjectObj = filteredProjects.find(project => project.name === projectName);
+    setSelectedProject(projectName);
+    setSelectedProjectId(selectedProjectObj?.ws_project_id);
+    setIsOpen(false);
   }
 
   // Handle manager change
   const handleManagerChange = (manager: string) => {
-    setSelectedManager(manager)
-    setIsManagerOpen(false)
+    setSelectedManager(manager);
+    setIsManagerOpen(false);
   }
 
   return (
@@ -880,7 +229,7 @@ const ProjectDashboard: FC = () => {
               >
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-green-600"></div>
-                  <span className="font-medium">{selectedProject}</span>
+                  <span className="font-medium">{selectedProject || "Выберите проект"}</span>
                 </div>
                 {isOpen ? (
                   <ChevronUp className="h-4 w-4 text-gray-500" />
@@ -891,38 +240,34 @@ const ProjectDashboard: FC = () => {
 
               {isOpen && (
                 <div className="absolute z-20 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-100 overflow-hidden">
-                  {filteredProjects.length > 0 ? (
-                    filteredProjects.map((project) => (
+                  {filteredProjects.map((project) => (
                       <div
-                        key={project}
+                      key={project.ws_project_id}
                         className={cn(
                           "px-4 py-3 cursor-pointer transition-colors",
-                          project === selectedProject ? "bg-green-50 text-green-900" : "text-gray-700 hover:bg-gray-50",
+                        project.name === selectedProject ? "bg-green-50 text-green-900" : "text-gray-700 hover:bg-gray-50",
                         )}
-                        onClick={() => handleProjectChange(project)}
+                      onClick={() => handleProjectChange(project.name)}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div
                               className={cn(
                                 "w-2 h-2 rounded-full",
-                                project === selectedProject ? "bg-green-600" : "bg-gray-300",
+                              project.status === 'active' ? "bg-green-600" : "bg-gray-400",
                               )}
                             ></div>
-                            <span>{project}</span>
+                          <span>{project.name}</span>
                           </div>
-                          {project === selectedProject && <Check className="h-4 w-4 text-green-600" />}
+                        {project.name === selectedProject && <Check className="h-4 w-4 text-green-600" />}
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="px-4 py-3 text-gray-500">Нет проектов, соответствующих фильтрам</div>
-                  )}
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* Manager filter */}
+            {/* Manager selector */}
             <div className="relative w-64">
               <button
                 onClick={() => setIsManagerOpen(!isManagerOpen)}
@@ -997,9 +342,8 @@ const ProjectDashboard: FC = () => {
           <div className="flex items-center gap-2 text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
             <User className="h-4 w-4" />
             <span>
-              Менеджер проекта: <span className="font-medium">{currentProjectData.manager}</span>
+              Менеджер проекта: <span className="font-medium">{currentProject?.manager || "Не назначен"}</span>
             </span>
-          </div>
         </div>
 
         <div className="flex-1">
@@ -1014,7 +358,7 @@ const ProjectDashboard: FC = () => {
 
             <div className="p-4 border-b border-gray-100 bg-white">
               <div className="flex flex-wrap gap-2">
-                {currentProjectData.sections.map((section) => (
+                  {currentProjectSections.map((section) => (
                   <button
                     key={section.name}
                     onClick={() => toggleChartSection(section.name)}
@@ -1065,7 +409,7 @@ const ProjectDashboard: FC = () => {
                         const avgValue = percentToNumber(averageProgress[dateIndex])
                         dataPoint[sectionName] = avgValue
                       } else {
-                        const sectionData = currentProjectData.sections.find((s) => s.name === sectionName)
+                          const sectionData = currentProjectSections.find((s) => s.name === sectionName)
                         if (sectionData && dateIndex < sectionData.progress.length) {
                           dataPoint[sectionName] = percentToNumber(sectionData.progress[dateIndex])
                         }
@@ -1120,7 +464,7 @@ const ProjectDashboard: FC = () => {
                     const color =
                       sectionName === "Среднее значение"
                         ? averageLineColor
-                        : currentProjectData.sections.find((s) => s.name === sectionName)?.color ||
+                          : currentProjectSections.find((s) => s.name === sectionName)?.color ||
                           colorPalette[index % colorPalette.length]
 
                     // Make the average line thicker
@@ -1144,47 +488,30 @@ const ProjectDashboard: FC = () => {
               </ResponsiveContainer>
             </div>
           </div>
-
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
-            <div className="p-3 border-b border-gray-100 bg-gray-50 flex items-center">
-              <h3 className="font-medium text-gray-700">Прогресс по разделам</h3>
-              <div className="flex items-center gap-2 text-xs text-gray-500 ml-auto pr-2">
-                <div className="w-3 h-3 bg-green-50 border border-gray-200"></div>
-                <span>Последняя доступная дата</span>
               </div>
-            </div>
-            {/* Improved horizontal scrolling container */}
-            <div className="overflow-x-auto" style={{ maxWidth: "100%", WebkitOverflowScrolling: "touch" }}>
-              <table className="w-full" style={{ minWidth: "1500px" }}>
+
+          {/* Используем секции из API */}
+          <div className="grid grid-cols-1 gap-6">
+            {/* Project sections table */}
+            <div className="bg-white shadow-sm rounded-xl overflow-hidden border border-gray-100">
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
                 <thead>
-                  <tr>
-                    <th className="border-b border-r border-gray-100 p-3 bg-white sticky left-0 z-[5]"></th>
-                    {Object.entries(datesByMonth).map(([month, dates]) => (
-                      <th
-                        key={month}
-                        colSpan={dates.length}
-                        className="border-b border-r border-gray-100 p-3 text-center bg-white text-gray-600 font-medium"
-                      >
-                        {month}
+                    <tr className="bg-gray-50 text-left">
+                      <th className="sticky left-0 z-10 bg-gray-50 py-3 px-3 border-b border-r border-gray-100 text-gray-500 font-medium text-xs uppercase tracking-wider">
+                        Раздел
                       </th>
-                    ))}
-                  </tr>
-                  <tr>
-                    <th className="border-r border-gray-100 p-3 bg-white sticky left-0 z-[5]"></th>
-                    {allDates.map((date, index) => {
-                      const isLastDate = date === "09.08.2025" // Last date before current
-                      return (
+                      {allDates.map((date, index) => (
                         <th
-                          key={date}
+                          key={index}
                           className={cn(
-                            "border-r border-gray-100 p-3 text-center text-xs",
-                            isLastDate ? "bg-green-50 text-gray-600" : "bg-white text-gray-500",
+                            "py-3 px-3 border-b border-r border-gray-100 text-gray-500 font-medium text-xs text-center",
+                            date === today ? "bg-green-50" : "bg-gray-50",
                           )}
                         >
-                          <div className="rotate-90 h-24 flex items-center justify-center">{date}</div>
+                          {date}
                         </th>
-                      )
-                    })}
+                      ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -1204,6 +531,7 @@ const ProjectDashboard: FC = () => {
                           )}
                         >
                           <span
+                            key={`avg-span-${index}`}
                             className={cn(
                               "px-2 py-1 rounded-full text-xs font-medium",
                               value === "-"
@@ -1220,8 +548,20 @@ const ProjectDashboard: FC = () => {
                     })}
                   </tr>
 
-                  {/* Project-specific Data Rows */}
-                  {currentProjectData.sections.map((section) => (
+                    {isSectionsLoading ? (
+                      <tr>
+                        <td colSpan={allDates.length + 1} className="text-center py-4">
+                          Загрузка секций проекта...
+                        </td>
+                      </tr>
+                    ) : currentProjectSections.length === 0 ? (
+                      <tr>
+                        <td colSpan={allDates.length + 1} className="text-center py-4">
+                          Нет данных о секциях для этого проекта
+                        </td>
+                      </tr>
+                    ) : (
+                      currentProjectSections.map((section) => (
                     <tr key={section.name} className="hover:bg-gray-50">
                       <td className="border-r border-b border-gray-100 p-3 bg-white font-medium text-gray-700 sticky left-0 z-10">
                         {section.name}
@@ -1237,6 +577,7 @@ const ProjectDashboard: FC = () => {
                             )}
                           >
                             <span
+                              key={`span-${index}`}
                               className={cn(
                                 "px-2 py-1 rounded-full text-xs",
                                 value === "-"
@@ -1252,9 +593,11 @@ const ProjectDashboard: FC = () => {
                         )
                       })}
                     </tr>
-                  ))}
+                      ))
+                    )}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         </div>
