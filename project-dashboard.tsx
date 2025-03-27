@@ -520,6 +520,9 @@ const ProjectDashboard: FC = () => {
                       // Make the average line thicker
                       const strokeWidth = sectionName === "Среднее значение" ? 3 : 2
 
+                      // Находим последнее непустое значение для секции
+                      const firstDataIndex = 0;
+
                       return (
                         <Line
                           key={sectionName}
@@ -531,6 +534,26 @@ const ProjectDashboard: FC = () => {
                           dot={{ r: 5, fill: color }}
                           activeDot={{ r: 7 }}
                           connectNulls
+                          label={({ x, y, value, index }) => {
+                            // Показываем подпись только для последней точки данных
+                            if (index === firstDataIndex && value !== null) {
+                              return (
+                                <g>
+                                  <text
+                                    x={x + 10}
+                                    y={y - 5}
+                                    fill={color}
+                                    fontSize={10}
+                                    textAnchor="start"
+                                    fontWeight={sectionName === "Среднее значение" ? "bold" : "normal"}
+                                  >
+                                    {sectionName}
+                                  </text>
+                                </g>
+                              );
+                            }
+                            return <g></g>;
+                          }}
                         />
                       )
                     })}
