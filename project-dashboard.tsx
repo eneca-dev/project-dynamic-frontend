@@ -128,8 +128,13 @@ const ProjectDashboard: FC = () => {
       new Map(apiSections.map(section => [section.name, section])).values()
     );
     
+    // Фильтруем секции, удаляя те, которые содержат "!" или "#"
+    const filteredSections = uniqueSections.filter(section => {
+      return !(section.name?.includes('!') || section.name?.includes('#'));
+    });
+    
     // Сортируем секции по имени в алфавитном порядке
-    const sortedSections = [...uniqueSections].sort((a, b) => 
+    const sortedSections = [...filteredSections].sort((a, b) => 
       (a.name || '').localeCompare(b.name || '')
     );
     
@@ -186,6 +191,17 @@ const ProjectDashboard: FC = () => {
     } else {
       setSelectedChartSections([...selectedChartSections, section])
     }
+  }
+
+  // Выбрать все секции для отображения на графике
+  const selectAllSections = () => {
+    const allSections = ["Среднее значение", ...currentProjectSections.map(section => section.name)];
+    setSelectedChartSections(allSections);
+  }
+
+  // Снять выбор со всех секций на графике
+  const deselectAllSections = () => {
+    setSelectedChartSections([]);
   }
 
   // Convert percentage string to number
@@ -370,6 +386,21 @@ const ProjectDashboard: FC = () => {
               <div className="flex items-center gap-2">
                 <BarChart className="h-4 w-4 text-green-700" />
                 <h3 className="font-medium text-gray-700">Визуализация прогресса</h3>
+              </div>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={selectAllSections}
+                  className="px-3 py-1.5 text-xs rounded-md bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
+                >
+                  Отобразить все разделы
+                </button>
+                <button
+                  onClick={deselectAllSections}
+                  className="px-3 py-1.5 text-xs rounded-md bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 transition-colors"
+                >
+                  Скрыть все разделы
+                </button>
               </div>
             </div>
 
