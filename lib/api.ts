@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Базовый URL бэкенда
-const BASE_URL = 'http://localhost:8000'; // Замените на нужный URL
+const BASE_URL = 'https://project-dynamic-5afcbb796d4b.herokuapp.com/'; // Замените на нужный URL
 
 // Настройка экземпляра axios
 const apiClient = axios.create({
