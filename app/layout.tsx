@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Project Dynamic',
-  description: 'Created with v0',
+  description: 'Просмотр динамики прогресса проекта и секций',
   generator: 'v0.dev',
 }
 

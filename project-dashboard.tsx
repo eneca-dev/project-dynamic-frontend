@@ -217,6 +217,7 @@ const ProjectDashboard: FC = () => {
     setSelectedProjectId(selectedProjectObj?.ws_project_id);
     setIsOpen(false);
     setSearchQuery(""); // Сбрасываем поисковый запрос при выборе проекта
+    setSelectedChartSections([]); // Сбрасываем выбранные секции графика при смене проекта
   }
 
   // Handle manager change
