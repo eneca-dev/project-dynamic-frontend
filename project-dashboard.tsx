@@ -345,25 +345,43 @@ const ProjectDashboard: FC = () => {
             </div>
 
             {/* Active/Inactive toggle */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setShowActiveProjects(true)}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-                  showActiveProjects ? "bg-white text-gray-800 shadow-sm" : "text-gray-600 hover:text-gray-800",
-                )}
-              >
-                Активные проекты
-              </button>
-              <button
-                onClick={() => setShowActiveProjects(false)}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-                  !showActiveProjects ? "bg-white text-gray-800 shadow-sm" : "text-gray-600 hover:text-gray-800",
-                )}
-              >
-                Не активные проекты
-              </button>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center bg-gray-100 rounded-lg p-1 h-12">
+                <button
+                  onClick={() => setShowActiveProjects(true)}
+                  className={cn(
+                    "px-4 py-2 text-sm font-medium rounded-md transition-colors h-10",
+                    showActiveProjects ? "bg-white text-gray-800 shadow-sm" : "text-gray-600  hover:bg-gray-200",
+                  )}
+                >
+                  Активные проекты
+                </button>
+                <button
+                  onClick={() => setShowActiveProjects(false)}
+                  className={cn(
+                    "px-4 py-2 text-sm font-medium rounded-md transition-colors h-10",
+                    !showActiveProjects ? "bg-white text-gray-800 shadow-sm" : "text-gray-600  hover:bg-gray-200",
+                  )}
+                >
+                  Не активные проекты
+                </button>
+              </div>
+
+              {currentProject?.ws_project_id && (
+                <a
+                  href={`https://eneca.worksection.com/project/${currentProject.ws_project_id}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-12 px-4 flex items-center text-sm font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
+                  Открыть проект в WS
+                </a>
+              )}
             </div>
 
             <div className="flex items-center gap-2 text-gray-600 bg-gray-50 px-4 py-2 rounded-lg ml-auto">
