@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 // Базовый URL бэкенда
+// const BASE_URL = 'http://127.0.0.1:8000'; // Замените на нужный URL
 const BASE_URL = 'https://project-dynamic-5afcbb796d4b.herokuapp.com/'; // Замените на нужный URL
+
 
 // Настройка экземпляра axios
 const apiClient = axios.create({
@@ -20,6 +22,13 @@ export interface Project {
   start_date: string;
   end_date: string;
   manager: string;
+  status: string;
+}
+
+export interface ProjectWithoutSections {
+  ws_project_id: string;
+  name: string;
+  user_to: string;
   status: string;
 }
 
@@ -44,7 +53,7 @@ export interface Tag {
 // Функции для работы с API
 
 // Получение списка всех проектов
-export const fetchProjects = async (): Promise<Project[]> => {
+export const fetchProjects = async (): Promise<ProjectWithoutSections[]> => {
   try {
     const response = await apiClient.get('/projects/');
     return response.data;
