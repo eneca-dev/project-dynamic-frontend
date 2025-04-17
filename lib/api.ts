@@ -1,20 +1,8 @@
-import axios from 'axios';
-
-// Базовый URL бэкенда
-// const BASE_URL = 'http://127.0.0.1:8000'; // Замените на нужный URL
-const BASE_URL = 'https://project-dynamic-5afcbb796d4b.herokuapp.com/'; // Замените на нужный URL
-
-
-// Настройка экземпляра axios
-const apiClient = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+import { getProjects as getSupabaseProjects, getProject } from '@/lib/services/projects';
+import { getProjectSectionsWithProgress } from '@/lib/services/sections';
+import { extractProgressTag } from '@/lib/services/tags';
 
 // Типы данных
-
 export interface Project {
   ws_project_id: string;
   name: string;
@@ -28,8 +16,9 @@ export interface Project {
 export interface ProjectWithoutSections {
   ws_project_id: string;
   name: string;
-  user_to: string;
+  user_to: Record<string, any> | null;
   status: string;
+  id: string;
 }
 
 export interface Section {
@@ -55,8 +44,15 @@ export interface Tag {
 // Получение списка всех проектов
 export const fetchProjects = async (): Promise<ProjectWithoutSections[]> => {
   try {
-    const response = await apiClient.get('/projects/');
-    return response.data;
+    const projects = await getSupabaseProjects();
+    // Преобразуем данные к нужному формату
+    return projects.map(project => ({
+      ws_project_id: project.ws_project_id.toString(),
+      name: project.name || `Проект ${project.ws_project_id}`,
+      user_to: project.user_to || null,
+      status: project.status || 'active',
+      id: project.id
+    }));
   } catch (error) {
     console.error('Ошибка при получении списка проектов:', error);
     throw error;
@@ -64,20 +60,29 @@ export const fetchProjects = async (): Promise<ProjectWithoutSections[]> => {
 };
 
 // Получение секций с тегами для конкретного проекта
-export const fetchProjectSections = async (projectId: string): Promise<Section[]> => {
+export const fetchProjectSections = async (projectId: string): Promise<any> => {
   try {
-    const response = await apiClient.get(`/tags/project/${projectId}`);
-    return response.data;
+    const numericProjectId = parseInt(projectId, 10);
+    if (isNaN(numericProjectId)) {
+      throw new Error('Некорректный ID проекта');
+    }
+    
+    const projectWithSections = await getProjectSectionsWithProgress(numericProjectId);
+    return projectWithSections;
   } catch (error) {
     console.error(`Ошибка при получении секций проекта ${projectId}:`, error);
     throw error;
   }
 };
 
-// Адаптер для преобразования данных от API в формат, удобный для фронтенда
+// Адаптер для преобразования данных от Supabase в формат, удобный для фронтенда
 export const adaptProjectData = (projects: any[]): Project[] => {
   return projects.map(project => ({
-    ...project,
+    ws_project_id: project.ws_project_id.toString(),
+    name: project.name || `Проект ${project.ws_project_id}`,
+    description: '', // У нас может не быть этого поля в Supabase
+    start_date: '', // У нас может не быть этого поля в Supabase
+    end_date: '', // У нас может не быть этого поля в Supabase
     // Используем поле user_to.name как manager проекта
     manager: project.user_to?.name || 'Не назначен',
     // Дополнительные преобразования, если требуется
@@ -98,7 +103,7 @@ export const adaptSectionData = (response: any): Section[] => {
         
         return {
           id: section.ws_section_id.toString(),
-          name: section.name,
+          name: section.name || `Секция ${section.ws_section_id}`,
           progress: progressValue,
           status: 'active', // Значение по умолчанию
           project_id: section.ws_project_id.toString(),
