@@ -195,7 +195,10 @@ const ProjectDashboard: FC = () => {
 
   // Выбрать все секции для отображения на графике
   const selectAllSections = () => {
-    const allSections = ["Среднее значение", ...currentProjectSections.map(section => section.name)];
+    const allSections = [
+      ...(selectedProject ? ["Среднее значение"] : []), 
+      ...currentProjectSections.map(section => section.name)
+    ];
     setSelectedChartSections(allSections);
   }
 
@@ -425,22 +428,24 @@ const ProjectDashboard: FC = () => {
 
             <div className="p-4 border-b border-gray-100 bg-white">
               <div className="flex flex-wrap gap-2">
-                {/* Average button - показываем первым */}
-                <button
-                  onClick={() => toggleChartSection("Среднее значение")}
-                  className={cn(
-                    "px-3 py-1.5 text-sm rounded-md border transition-colors",
-                    selectedChartSections.includes("Среднее значение")
-                      ? "bg-green-50 border-green-200 text-green-800"
-                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50",
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: averageLineColor }}></div>
-                    Среднее значение
-                    {selectedChartSections.includes("Среднее значение") && <Check className="h-3 w-3 text-green-600" />}
-                  </div>
-                </button>
+                {/* Average button - показываем только если проект выбран */}
+                {selectedProject && (
+                  <button
+                    onClick={() => toggleChartSection("Среднее значение")}
+                    className={cn(
+                      "px-3 py-1.5 text-sm rounded-md border transition-colors",
+                      selectedChartSections.includes("Среднее значение")
+                        ? "bg-green-50 border-green-200 text-green-800"
+                        : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50",
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: averageLineColor }}></div>
+                      Среднее значение
+                      {selectedChartSections.includes("Среднее значение") && <Check className="h-3 w-3 text-green-600" />}
+                    </div>
+                  </button>
+                )}
                 
                 {/* Секции проекта - отсортированы в formatSectionsForDisplay */}
                 {currentProjectSections.map((section) => (
@@ -612,7 +617,8 @@ const ProjectDashboard: FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {allDates.length > 0 && (
+                  {/* Строка среднего значения показывается только если проект выбран и есть даты */}
+                  {selectedProject && allDates.length > 0 && (
                     <tr className="bg-green-50 hover:bg-green-50">
                       <td className="border-r border-b border-gray-100 p-3 font-medium text-gray-700 sticky left-0 z-10 bg-green-50">
                         Среднее значение
