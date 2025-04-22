@@ -284,6 +284,27 @@ const ProjectDashboard: FC = () => {
     return `${Math.round(average)}%`
   })
 
+  // Фильтруем даты, чтобы отобразить только те, где хотя бы одна секция имеет ненулевой прогресс
+  const filteredDates = allDates.filter((_, index) => {
+    // Получаем среднее значение для этой даты
+    const avgValue = averageProgress[index];
+    
+    // Если среднее значение не "-" и не "0%", значит хотя бы одна секция имеет ненулевой прогресс
+    return avgValue !== "-" && avgValue !== "0%";
+  });
+
+  // Находим индекс начала ненулевых дат в массиве allDates
+  const nonZeroStartIndex = allDates.findIndex((_, index) => {
+    const avgValue = averageProgress[index];
+    return avgValue !== "-" && avgValue !== "0%";
+  });
+
+  // Массив дат для отображения - если все даты с нулевыми значениями, показываем все даты
+  // В противном случае показываем только даты начиная с первой ненулевой
+  const displayDates = nonZeroStartIndex !== -1 
+    ? allDates.slice(nonZeroStartIndex) 
+    : allDates;
+
   // Toggle section selection for chart
   const toggleChartSection = (section: string) => {
     if (selectedChartSections.includes(section)) {
@@ -570,22 +591,25 @@ const ProjectDashboard: FC = () => {
             </div>
 
             <div className="p-4 pb-12">
-              {allDates.length > 0 ? (
+              {displayDates.length > 0 ? (
                 <ResponsiveContainer width="100%" height={400}>
                   <LineChart
-                    data={allDates.map((date, dateIndex) => {
+                    data={displayDates.map((date, dateIndex) => {
+                      // Находим соответствующий индекс в полном массиве дат
+                      const originalIndex = allDates.indexOf(date);
+                      
                       // Create a single data point for each date with all selected sections
                       const dataPoint: any = { date }
 
                       // Add data for each selected section
                       selectedChartSections.forEach((sectionName) => {
                         if (sectionName === "Среднее значение") {
-                          const avgValue = percentToNumber(averageProgress[dateIndex])
+                          const avgValue = percentToNumber(averageProgress[originalIndex])
                           dataPoint[sectionName] = avgValue
                         } else {
-                            const sectionData = currentProjectSections.find((s) => s.name === sectionName)
-                          if (sectionData && dateIndex < sectionData.progress.length) {
-                            dataPoint[sectionName] = percentToNumber(sectionData.progress[dateIndex])
+                          const sectionData = currentProjectSections.find((s) => s.name === sectionName)
+                          if (sectionData && originalIndex < sectionData.progress.length) {
+                            dataPoint[sectionName] = percentToNumber(sectionData.progress[originalIndex])
                           }
                         }
                       })
@@ -703,7 +727,7 @@ const ProjectDashboard: FC = () => {
                       <th className="sticky left-0 z-10 bg-gray-50 py-3 px-3 border-b border-r border-gray-100 text-gray-500 font-medium text-xs uppercase tracking-wider">
                         Раздел
                       </th>
-                      {allDates.map((date, index) => (
+                      {displayDates.map((date, index) => (
                         <th
                           key={index}
                           className={cn(
@@ -718,23 +742,27 @@ const ProjectDashboard: FC = () => {
                 </thead>
                 <tbody>
                   {/* Строка среднего значения показывается только если проект выбран и есть даты */}
-                  {selectedProject && allDates.length > 0 && (
+                  {selectedProject && displayDates.length > 0 && (
                     <tr className="bg-green-50 hover:bg-green-50">
                       <td className="border-r border-b border-gray-100 p-3 font-medium text-gray-700 sticky left-0 z-10 bg-green-50">
                         Среднее значение
                       </td>
-                      {averageProgress.map((value, index) => {
-                        const isLastDate = index === averageProgress.length - 1
+                      {displayDates.map((date, displayIndex) => {
+                        // Находим соответствующий индекс в полном массиве дат
+                        const originalIndex = allDates.indexOf(date);
+                        const value = averageProgress[originalIndex];
+                        const isLastDate = displayIndex === displayDates.length - 1;
+                        
                         return (
                           <td
-                            key={index}
+                            key={displayIndex}
                             className={cn(
                               "border-r border-b border-gray-100 p-3 text-center",
                               isLastDate ? "bg-green-50" : "",
                             )}
                           >
                             <span
-                              key={`avg-span-${index}`}
+                              key={`avg-span-${displayIndex}`}
                               className={cn(
                                 "px-2 py-1 rounded-full text-xs font-medium",
                                 value === "-"
@@ -754,11 +782,11 @@ const ProjectDashboard: FC = () => {
 
                     {isSectionsLoading ? (
                       <tr>
-                        <td colSpan={allDates.length + 1} className="text-center py-4">
+                        <td colSpan={displayDates.length + 1} className="text-center py-4">
                           Загрузка секций проекта...
                         </td>
                       </tr>
-                    ) : allDates.length === 0 ? (
+                    ) : displayDates.length === 0 ? (
                       <tr>
                         <td colSpan={2} className="text-center py-4">
                           Нет данных о датах для этого проекта
@@ -766,7 +794,7 @@ const ProjectDashboard: FC = () => {
                       </tr>
                     ) : currentProjectSections.length === 0 ? (
                       <tr>
-                        <td colSpan={allDates.length + 1} className="text-center py-4">
+                        <td colSpan={displayDates.length + 1} className="text-center py-4">
                           Нет данных о секциях для этого проекта
                         </td>
                       </tr>
@@ -777,18 +805,22 @@ const ProjectDashboard: FC = () => {
                       <td className="border-r border-b border-gray-100 p-3 bg-white font-medium text-gray-700 sticky left-0 z-10">
                         {section.name}
                       </td>
-                      {section.progress.map((value, index) => {
-                        const isLastDate = index === section.progress.length - 1
+                      {displayDates.map((date, displayIndex) => {
+                        // Находим соответствующий индекс в полном массиве дат
+                        const originalIndex = allDates.indexOf(date);
+                        const value = section.progress[originalIndex];
+                        const isLastDate = displayIndex === displayDates.length - 1;
+                        
                         return (
                           <td
-                            key={index}
+                            key={displayIndex}
                             className={cn(
                               "border-r border-b border-gray-100 p-3 text-center",
                               isLastDate ? "bg-green-50" : "bg-white",
                             )}
                           >
                             <span
-                              key={`span-${index}`}
+                              key={`span-${displayIndex}`}
                               className={cn(
                                 "px-2 py-1 rounded-full text-xs",
                                 value === "-"
