@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabase'
-import { Project, ProjectWithoutSections } from '@/lib/types'
+import { Project, ProjectWithoutSections, Section } from '@/lib/types'
 import { extractProgressTag } from '@/lib/services/tags'
-import { getSections } from '@/lib/services/sections'
 
 /**
  * Получение списка всех проектов
@@ -17,22 +16,46 @@ export async function getProjects(): Promise<ProjectWithoutSections[]> {
       throw new Error(`Ошибка при получении проектов: ${projectsError.message}`)
     }
 
-    // Получаем все секции
-    const { data: sectionsData, error: sectionsError } = await supabase
-      .from('sections')
-      .select('*')
+    console.log('Проекты до фильтрации:', projectsData)
 
-    if (sectionsError) {
-      throw new Error(`Ошибка при получении секций: ${sectionsError.message}`)
+    // Получаем все секции
+    let allSectionsData: Section[] = [];
+    let pageSize = 1000;
+    let currentPage = 0;
+    let hasMoreData = true;
+
+    while (hasMoreData) {
+      const { data: sectionsData, error: sectionsError } = await supabase
+        .from('sections')
+        .select('*')
+        .order('created_at')
+        .range(currentPage * pageSize, (currentPage + 1) * pageSize - 1);
+
+      if (sectionsError) {
+        throw new Error(`Ошибка при получении секций: ${sectionsError.message}`);
+      }
+
+      if (sectionsData && sectionsData.length > 0) {
+        allSectionsData = [...allSectionsData, ...sectionsData];
+        currentPage++;
+      } else {
+        hasMoreData = false;
+      }
     }
+
+    // Проверяем количество полученных секций
+    console.log('Всего получено секций:', allSectionsData.length);
+    
 
     // Собираем проекты с их секциями вручную
     const allProjects = projectsData.map(project => {
-      const projectSections = sectionsData.filter(
+      const projectSections = allSectionsData.filter(
         section => section.ws_project_id === project.ws_project_id
       )
       return { ...project, sections: projectSections } as Project
     })
+
+    console.log('Проекты с секциями до фильтрации:', allProjects)
 
     const filteredProjects: ProjectWithoutSections[] = []
 
