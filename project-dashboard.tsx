@@ -62,7 +62,7 @@ const ProjectDashboard: FC = () => {
   const [isManagerOpen, setIsManagerOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState("")
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined)
-  const [selectedManager, setSelectedManager] = useState("Все менеджеры")
+  const [selectedManager, setSelectedManager] = useState("Все руководители")
   const [selectedChartSections, setSelectedChartSections] = useState<string[]>([])
   const [showActiveProjects, setShowActiveProjects] = useState(true)
   const [allDates, setAllDates] = useState<string[]>([])
@@ -75,14 +75,15 @@ const ProjectDashboard: FC = () => {
   // Список проектов, отфильтрованный по менеджеру и статусу
   const filteredProjects = projects
     .filter(project => showActiveProjects ? project.status === 'active' : project.status !== 'active')
-    .filter(project => selectedManager === "Все менеджеры" ? true : project.manager === selectedManager);
+    .filter(project => selectedManager === "Все руководители" ? true : project.manager === selectedManager);
 
-  // Фильтрация проектов по поисковому запросу
+  // Фильтрация проектов по поисковому запросу и сортировка по алфавиту
   const searchFilteredProjects = filteredProjects
-    .filter(project => project.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    .filter(project => project.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-  // Список всех менеджеров
-  const managers = ["Все менеджеры", ...Array.from(new Set(projects.map(project => project.manager)))];
+  // Список всех менеджеров, отсортированный по алфавиту
+  const managers = ["Все руководители", ...Array.from(new Set(projects.map(project => project.manager))).sort()];
 
   // Устанавливаем первый проект по умолчанию при загрузке данных
   useEffect(() => {
@@ -341,7 +342,8 @@ const ProjectDashboard: FC = () => {
     setSelectedProjectId(selectedProjectObj?.ws_project_id);
     setIsOpen(false);
     setSearchQuery(""); // Сбрасываем поисковый запрос при выборе проекта
-    setSelectedChartSections([]); // Сбрасываем выбранные секции графика при смене проекта
+    // Добавляем "Среднее значение" в выбранные секции при выборе проекта
+    setSelectedChartSections(["Среднее значение"]);
   }
 
   // Handle manager change
@@ -518,7 +520,7 @@ const ProjectDashboard: FC = () => {
           <div className="flex items-center gap-2 text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
             <User className="h-4 w-4" />
             <span>
-              Менеджер проекта: <span className="font-medium">{currentProject?.manager || "Не назначен"}</span>
+              Руководитель проекта: <span className="font-medium">{currentProject?.manager || "Не назначен"}</span>
             </span>
         </div>
 

@@ -48,7 +48,7 @@ export const useProjectSections = (projectId: string | undefined) => {
 
 // Вспомогательная функция для фильтрации проектов по менеджеру
 export const filterProjectsByManager = (projects: Project[], manager: string | null): Project[] => {
-  if (!manager || manager === "Все менеджеры") return projects;
+  if (!manager || manager === "Все руководители") return projects;
   return projects.filter(project => project.manager === manager);
 };
 
