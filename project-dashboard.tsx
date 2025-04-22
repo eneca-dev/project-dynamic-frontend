@@ -123,36 +123,136 @@ const ProjectDashboard: FC = () => {
       return [];
     }
     
-    // Удаляем дубликаты секций, используя уникальные имена
-    const uniqueSections = Array.from(
-      new Map(apiSections.map(section => [section.name, section])).values()
-    );
+    console.log('Начало formatSectionsForDisplay, получено секций:', apiSections.length);
+    console.log('Доступные даты:', allDates);
     
-    // Фильтруем секции, удаляя те, которые содержат "!" или "#"
-    const filteredSections = uniqueSections.filter(section => {
-      return !(section.name?.includes('!') || section.name?.includes('#'));
+    // Создаем карту для группировки секций по имени раздела (отображаемому имени)
+    const sectionsByName = new Map<string, ApiSection[]>();
+    
+    // Группируем все секции по имени раздела
+    apiSections.forEach(section => {
+      if (!section.name) {
+        return;
+      }
+      
+      const sectionName = section.name;
+      if (!sectionsByName.has(sectionName)) {
+        sectionsByName.set(sectionName, []);
+      }
+      sectionsByName.get(sectionName)?.push(section);
     });
     
-    // Сортируем секции по имени в алфавитном порядке
-    const sortedSections = [...filteredSections].sort((a, b) => 
-      (a.name || '').localeCompare(b.name || '')
-    );
+    console.log('Сгруппировано по имени раздела:', sectionsByName.size, 'групп');
     
-    return sortedSections.map((section, index) => {
-      // Используем цвета из цветовой палитры или устанавливаем цвет по умолчанию
-      const color = colorPalette[index % colorPalette.length];
+    // Формируем итоговый список секций с историей прогресса
+    const sectionsWithProgress: Section[] = [];
+    
+    // Обрабатываем каждую группу секций (с одинаковым именем)
+    sectionsByName.forEach((sections, sectionName) => {
+      if (sections.length === 0 || sectionName.includes('!') || sectionName.includes('#')) {
+        return; // Пропускаем пустые группы и секции с символами "!" или "#"
+      }
       
-      // Создаем массив прогресса с одинаковым значением для всех дат
-      // В реальном приложении здесь будет использоваться историческая информация
-      const progressValue = section.progress !== undefined ? section.progress : 0;
-      const progressArray = allDates.map(() => `${progressValue}%`);
+      console.log(`Обработка группы секций "${sectionName}", количество: ${sections.length}`);
       
-      return {
-        name: section.name || `Секция ${index + 1}`,
-        color,
-        progress: progressArray,
-      };
+      // Создаем карту прогресса по датам
+      const progressByDate: Record<string, number> = {};
+      
+      // Сортируем секции по дате создания (от самой ранней)
+      sections.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateA - dateB;
+      });
+      
+      // Заполняем историю прогресса для всех дат создания секций
+      sections.forEach(section => {
+        if (section.created_at) {
+          const dateKey = formatDate(section.created_at);
+          if (dateKey) {
+            const progress = section.progress !== undefined ? section.progress : 0;
+            progressByDate[dateKey] = progress;
+            console.log(`   Запись ${dateKey}: прогресс = ${progress}%`);
+          }
+        }
+      });
+      
+      // Получаем самую раннюю дату создания для определения, когда секция стала доступна
+      const earliestSection = sections[0];
+      const earliestDate = earliestSection?.created_at ? formatDate(earliestSection.created_at) : '';
+      
+      console.log(`   Самая ранняя дата для секции "${sectionName}": ${earliestDate}`);
+      
+      // Сортируем ключи дат, чтобы обрабатывать их в хронологическом порядке
+      const sortedDates = Object.keys(progressByDate).sort((a, b) => {
+        const [dayA, monthA, yearA] = a.split('.').map(Number);
+        const [dayB, monthB, yearB] = b.split('.').map(Number);
+        return new Date(yearA, monthA - 1, dayA).getTime() - new Date(yearB, monthB - 1, dayB).getTime();
+      });
+      
+      console.log(`   Отсортированные даты с прогрессом: ${sortedDates.join(', ')}`);
+      
+      // Заполняем прогресс для всех дат в allDates
+      const progressArray = allDates.map(date => {
+        const [dayDate, monthDate, yearDate] = date.split('.').map(Number);
+        const currentDate = new Date(yearDate, monthDate - 1, dayDate).getTime();
+        
+        // Проверяем, есть ли для текущей даты прогресс
+        if (progressByDate[date] !== undefined) {
+          return `${progressByDate[date]}%`;
+        }
+        
+        // Если нет, ищем ближайшую предыдущую дату с прогрессом
+        // Для начала проверяем, что дата не раньше, чем секция была создана
+        if (earliestDate) {
+          const [dayEarliest, monthEarliest, yearEarliest] = earliestDate.split('.').map(Number);
+          const earliestDateTime = new Date(yearEarliest, monthEarliest - 1, dayEarliest).getTime();
+          
+          if (currentDate < earliestDateTime) {
+            console.log(`   Дата ${date} раньше создания секции, возвращаем "-"`);
+            return "-"; // Дата раньше создания секции
+          }
+        }
+        
+        // Ищем последнюю предыдущую дату с известным прогрессом
+        let latestPreviousDate = '';
+        
+        for (const dateKey of sortedDates) {
+          const [dayKey, monthKey, yearKey] = dateKey.split('.').map(Number);
+          const keyDate = new Date(yearKey, monthKey - 1, dayKey).getTime();
+          
+          if (keyDate <= currentDate) {
+            latestPreviousDate = dateKey;
+          } else {
+            break; // Прекращаем поиск, когда нашли дату позже текущей
+          }
+        }
+        
+        // Возвращаем прогресс для ближайшей предыдущей даты или "-" если такой нет
+        if (latestPreviousDate && progressByDate[latestPreviousDate] !== undefined) {
+          console.log(`   Для даты ${date} используем прогресс ${progressByDate[latestPreviousDate]}% от даты ${latestPreviousDate}`);
+          return `${progressByDate[latestPreviousDate]}%`;
+        }
+        
+        return "-";
+      });
+      
+      console.log(`   Итоговый массив прогресса для секции "${sectionName}":`, progressArray);
+      
+      // Добавляем секцию в итоговый список
+      sectionsWithProgress.push({
+        name: sectionName,
+        color: colorPalette[sectionsWithProgress.length % colorPalette.length],
+        progress: progressArray
+      });
     });
+    
+    // Сортируем секции по имени
+    sectionsWithProgress.sort((a, b) => a.name.localeCompare(b.name));
+    
+    console.log('Завершение formatSectionsForDisplay, возвращено секций:', sectionsWithProgress.length);
+    
+    return sectionsWithProgress;
   };
 
   // Если данные загружаются, показываем индикатор загрузки
@@ -718,4 +818,5 @@ const ProjectDashboard: FC = () => {
 }
 
 export default ProjectDashboard
+
 
